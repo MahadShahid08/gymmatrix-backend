@@ -1,5 +1,7 @@
 import { getWorkoutTemplateModel } from '../models/WorkoutTemplate.js';
 import { getGymMemberModel } from '../models/GymMember.js';
+import { getGymManagerModel } from '../models/GymManager.js';  // Add this line
+
 
 export const workoutTemplateController = {
   getPersonalTrainingMembers: async (req, res) => {
@@ -152,22 +154,41 @@ getMemberTemplateHistory: async (req, res) => {
     // Get member's active template
     getMemberTemplate: async (req, res) => {
         try {
+            const GymMember = getGymMemberModel(req.dbConnection);
+            const member = await GymMember.findById(req.user.id);
+    
+            if (!member) {
+                return res.status(404).json({ 
+                    message: "Member not found" 
+                });
+            }
+    
+            if (!member.personalTraining?.isEnrolled) {
+                return res.status(403).json({ 
+                    message: "Member is not enrolled in personal training" 
+                });
+            }
+    
             const WorkoutTemplate = getWorkoutTemplateModel(req.dbConnection);
             
             const template = await WorkoutTemplate.findOne({ 
                 memberId: req.user.id,
                 isActive: true 
             });
-
+    
             if (!template) {
-                return res.status(404).json({ message: "No active workout template found" });
+                return res.status(404).json({ 
+                    message: "No active workout template assigned yet" 
+                });
             }
-
+    
             res.json(template);
-
+    
         } catch (error) {
             console.error('Get member template error:', error);
-            res.status(500).json({ message: "Failed to fetch workout template" });
+            res.status(500).json({ 
+                message: error.message || "Failed to fetch workout template"
+            });
         }
     },
     setTemplateStatus: async (req, res) => {
